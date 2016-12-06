@@ -10,7 +10,7 @@ ear).
 First of all, please make sure that python 2.7 and Chainer (http://chainer.org) are installed.
 Also, check whether gpu (cuda) can be used or not.
 
-1. Download the SpiCe dataset (http://spice.lif.univ-mrs.fr).
+1. Download the SPiCe dataset (http://spice.lif.univ-mrs.fr).
 2. Put it (named "on-line/") in the root directory of the repository "rnn_for_spice".
 3. Execute the following command to learn RNN models:
    - python learn.py
