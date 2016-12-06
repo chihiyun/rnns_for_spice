@@ -14,15 +14,16 @@ import sys
 from chainer import serializers
 import models
 from datagen import DataGenerator
+import time
+import os
 
 '''
         "args : prob_no, net_arch, VEC_SIZE."
         "net_arch must be chosen from {simple, sp2, bigram}."
 '''
-def learn(worker_id, pro_no, net_arch, VEC_SIZE):
+def learn( pro_no, net_arch, VEC_SIZE, gpu_no=0):
 
-    gpu_no = worker_id%2
-    print "gpu_no:", gpu_no, "(", worker_id ,")"
+    print "gpu_no:", gpu_no
     print "problem:", pro_no
     print "net_arch:", net_arch
     print "vec_size:", VEC_SIZE
@@ -37,6 +38,9 @@ def learn(worker_id, pro_no, net_arch, VEC_SIZE):
         xp = np
 
     time_id = datetime.datetime.today().strftime("%m%d_%H%M")
+    dir_name = str.zfill(str(pro_no),2)
+    if not os.path.exists(dir_name):
+        os.makedirs(dir_name)
     output_file = str.zfill(str(pro_no),2) + '/' +'log_'+ str(VEC_SIZE) + '_' + net_arch + '_' + time_id + '.txt'
     of = open(output_file,'w')
 
@@ -132,3 +136,23 @@ def learn(worker_id, pro_no, net_arch, VEC_SIZE):
     serializers.save_hdf5(model_file, learner)
 
 
+'''
+  Starting point of learning loop:
+  In all, the following contains:
+  Number of trials for statistics : 10
+  Number of vector sizes : 2
+  Number of different architectures  : 3
+  Number of probrem numbers : 16
+  If this program is run on single computing node, it may take more than a week.
+  If you want to finish in a short time, please change the parameters as appropriate.
+'''
+if __name__ == '__main__':
+
+    for i in xrange(10):
+        for vecsize in [400,600]:
+            for arch in ["simple","sp2", "bigram"]:
+                for pno in xrange(1,16):
+                    start = time.time()
+                    learn(pno, arch, vecsize, 0)
+                    elapsed_time = time.time() - start
+                    print "finished:", i, "th",  (pno, arch, vecsize), ":", elapsed_time, "sec"

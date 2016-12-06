@@ -6,7 +6,7 @@ import math
 import datetime
 import time
 import sys
-import lstms
+import models as lstms
 import datagen
 import os
 import glob
@@ -16,13 +16,14 @@ import itertools as ite
 
 class TestDataGenerator: 
     '''
-    pautomac 形式の時系列のデータファイルを読み込みます。
-    start_symbol   : -2 mod 記号の種類数
-    end_symbol     : -1 mod 記号の種類数
-    padding_symbol : -1 mod 記号の種類数
+    Read a data file written in SPiCe format.
+    prefix_file    : a file written in the same format as SPiCe's prefix files.
+    target_file    : a file written in the same format as SPiCe's target files. 
+    start_symbol   : -2 mod (the number of symbols).
+    end_symbol     : -1 mod (the number of symbols).
+    padding_symbol : -1 mod (the number of symbols).
     '''
     def __init__(self, kind, prefix_file, target_file, start_symbol=-2, end_symbol=-1, padding_symbol=-1):
-        '''prefix ファイルの読み込み'''
         tmp = [ l.strip().split()[1:] for l in open(prefix_file).readlines() ][1:]
         self.datasize = len(tmp)
         if end_symbol is not None:
@@ -37,7 +38,6 @@ class TestDataGenerator:
         self.end_symbol = end_symbol % self.kind
         self.padding_symbol = padding_symbol % self.kind
         
-        '''ターゲットファイルの読み込み'''
         self.denominators = np.zeros(self.datasize, dtype=float)
         self.wd_to_ps = np.zeros( (self.datasize,self.kind), dtype=float)
         for i, l in enumerate( open(target_file).readlines()[:self.datasize] ) :
@@ -50,9 +50,8 @@ class TestDataGenerator:
             ps = mat[:,1].astype(float)
             self.wd_to_ps[i, wds ] = ps
     '''
-    バッチ化された時系列データを、順に yield で生成します。
-    テストなので、時系列の長さが異なることは想定していません。
-    引数: batch_ids  バッチ化するための、時系列のIDの配列
+    This method yeilds batch-wise elements sequentially.
+    batch_ids : ids of sentences in a batch.
     '''
     def sequence(self, batch_ids):
         ids = self.pos[batch_ids,0]
@@ -68,23 +67,16 @@ class TestDataGenerator:
             dif = ids < end
             
     '''
-    時系列データのセンテンスの配列(バッチ)を、順に yield で生成します。
-    長さを揃えます。
+    This method sorts sentences in order of length, 
+    divides them into batches, and then generates their ids.
     '''
     def batched_sentences(self, max_batch_size ):
-        '''prefix sentences を block に分割'''
         lengths = self.pos[:,1]-self.pos[:,0]
         sorted_order =  np.argsort(lengths + np.arange(len(lengths))*(0.1/(len(lengths))) )
-        #print lengths[sorted_order]
-        '''ひとつ前より真に大きいならTrue'''
         flag = np.roll(lengths[sorted_order], 1) < lengths[sorted_order]
-        #print flag
-        '''Trueの累積和 = block_IDs'''
         block_ids = flag.cumsum()
         splited_orders = [sorted_order[block_ids == i] for i in range(0, np.max(block_ids)+1)]
-        '''さらに max_batch_size で割る'''
         blocks = [ ary[i:i+max_batch_size] for ary in splited_orders for i in range(0,len(ary),max_batch_size) ]
-        '''block を yield '''
         for sen_ids in blocks:
             yield np.asarray(sen_ids, dtype=int)
     
@@ -102,17 +94,10 @@ except:
     xp = np
 
 def target_score(self, top5s, sids):
-    #print 'sids', sids+1
-    #print 'top5s', top5s
-    #for sid in sids: print sid +1, self.wd_to_ps[sid] 
     mat = np.asarray([ self.wd_to_ps[sid, top5] for top5, sid in zip( top5s, sids) ]) 
     norms = self.denominators[sids]
-    #print mat
     mat = mat /np.log2([2,3,4,5,6])
-    #print mat
     srcs = np.sum( mat , axis=1 )
-    #print 'srcs', srcs
-    #print 'norms', norms
     scores_top5 =  srcs/ norms
     accs = mat[:,0]
     return accs, scores_top5
